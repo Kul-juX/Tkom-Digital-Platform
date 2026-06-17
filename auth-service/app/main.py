@@ -4,9 +4,15 @@ from app.db.database import Base, engine
 
 app = FastAPI(title="Telikom Auth Service")
 
-Base.metadata.create_all(bind=engine)
+
+# Run DB setup on startup (better practice)
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
+
 
 app.include_router(router)
+
 
 @app.get("/")
 def health():
