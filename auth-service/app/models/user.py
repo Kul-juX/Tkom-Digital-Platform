@@ -1,10 +1,14 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, Integer, String
 from app.db.database import Base
-import uuid
+
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(Integer, primary_key=True, index=True)
+
+    username = Column(String, unique=True, index=True)  # ✅ ADD THIS
+
     email = Column(String, unique=True, index=True)
+
     hashed_password = Column(String)
