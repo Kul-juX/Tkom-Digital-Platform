@@ -1,0 +1,24 @@
+auth-service/
+│
+├── app/
+│   ├── main.py
+│   ├── api/
+│   │   └── routes.py
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── redis_client.py
+│   │   └── security.py
+│   ├── db/
+│   │   ├── database.py
+│   │   ├── deps.py
+│   │   ├── user_crud.py
+│   │   └── token_crud.py
+│   ├── models/
+│   │   ├── user.py
+│   │   └── token_blacklist.py
+│   └── utils/
+│       └── password.py
+│
+├── .env
+├── requirements.txt
+└── alembic/

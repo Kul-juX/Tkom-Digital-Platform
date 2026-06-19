@@ -3,8 +3,10 @@ from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
 from app.db import user_crud
-from app.utils.security import verify_password
-from app.utils.jwt import create_access_token
+from app.utils.password import verify_password
+from app.core.security import create_access_token, create_refresh_token
+from app.core.deps import get_current_user
+from app.db.token_crud import blacklist_token
 
 router = APIRouter()
 
@@ -12,12 +14,11 @@ router = APIRouter()
 # REGISTER
 @router.post("/register")
 def register(username: str, email: str, password: str, db: Session = Depends(get_db)):
-    user = user_crud.get_user_by_email(db, email)
-    if user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    if user_crud.get_user_by_email(db, email):
+        raise HTTPException(400, "Email already registered")
 
-    new_user = user_crud.create_user(db, username, email, password)
-    return {"message": "User created", "user_id": new_user.id}
+    user = user_crud.create_user(db, username, email, password)
+    return {"message": "User created", "id": user.id}
 
 
 # LOGIN
@@ -25,42 +26,33 @@ def register(username: str, email: str, password: str, db: Session = Depends(get
 def login(email: str, password: str, db: Session = Depends(get_db)):
     user = user_crud.get_user_by_email(db, email)
 
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(400, "Invalid credentials")
 
-    if not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+    access = create_access_token({
+        "sub": user.email,
+        "role": user.role
+    })
 
-    token = create_access_token({"sub": user.email})
+    refresh = create_refresh_token({
+        "sub": user.email
+    })
 
     return {
-        "access_token": token,
+        "access_token": access,
+        "refresh_token": refresh,
         "token_type": "bearer"
     }
 
-from jose import jwt, JWTError
-from fastapi import Request
 
-SECRET_KEY = "supersecretkey"
-ALGORITHM = "HS256"
-
-
-def get_current_user(request: Request):
-    auth = request.headers.get("authorization")
-
-    if not auth:
-        raise HTTPException(status_code=401, detail="Missing token")
-
-    token = auth.split(" ")[1]
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        return email
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-
+# PROFILE
 @router.get("/profile")
 def profile(user=Depends(get_current_user)):
-    return {"message": "Protected profile", "user": user}
+    return {"user": user}
+
+
+# LOGOUT
+@router.post("/logout")
+def logout(user=Depends(get_current_user)):
+    blacklist_token(user["token"])
+    return {"message": "Logged out"}

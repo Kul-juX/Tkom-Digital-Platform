@@ -1,28 +1,21 @@
-from jose import jwt, JWTError
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-
-security = HTTPBearer()
+from datetime import datetime, timedelta, timezone
+from jose import jwt
+from app.core.config import SECRET_KEY, ALGORITHM, ACCESS_EXPIRE, REFRESH_EXPIRE
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
+def create_access_token(data: dict):
+    payload = data.copy()
+    payload.update({
+        "type": "access",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_EXPIRE)
+    })
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
 
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-
-        return email
-
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token expired or invalid")
+def create_refresh_token(data: dict):
+    payload = data.copy()
+    payload.update({
+        "type": "refresh",
+        "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_EXPIRE)
+    })
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
